@@ -304,6 +304,9 @@ end
 local SAFE_REMOTES = {}
 for _, r in pairs(REM) do if r then SAFE_REMOTES[r] = true end end
 
+-- FIX: Table unpack compatibility for different Lua versions
+local unpackFn = table.unpack or unpack
+
 local remoteFireCount = {}
 task.spawn(function()
     for _, r in pairs(REM) do
@@ -317,13 +320,20 @@ task.spawn(function()
     end
 end)
 
+-- ============================================================
+-- FIXED safeFire FUNCTION
+-- The bug was: '...' was used inside a nested function() closure
+-- Solution: Capture varargs into a table, then unpack inside
+-- ============================================================
 local function safeFire(remote, ...)
     if not remote then return end
     if not SAFE_REMOTES[remote] then
         warn("[VD Honeypot] BLOCKED: " .. tostring(remote:GetFullName()))
         return
     end
-    pcall(function() remote:FireServer(...) end)
+    local args = {...}
+    local count = select("#", ...)
+    pcall(function() remote:FireServer(unpackFn(args, 1, count)) end)
 end
 
 -- ============================================================
