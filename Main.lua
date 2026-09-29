@@ -304,7 +304,6 @@ end
 local SAFE_REMOTES = {}
 for _, r in pairs(REM) do if r then SAFE_REMOTES[r] = true end end
 
--- FIX: Table unpack compatibility for different Lua versions
 local unpackFn = table.unpack or unpack
 
 local remoteFireCount = {}
@@ -320,11 +319,7 @@ task.spawn(function()
     end
 end)
 
--- ============================================================
--- FIXED safeFire FUNCTION
--- The bug was: '...' was used inside a nested function() closure
--- Solution: Capture varargs into a table, then unpack inside
--- ============================================================
+-- FIXED safeFire - captures varargs into table
 local function safeFire(remote, ...)
     if not remote then return end
     if not SAFE_REMOTES[remote] then
@@ -593,8 +588,11 @@ CS.ScrollBarThickness=4 CS.ScrollBarImageColor3=C.A CS.CanvasSize=UDim2.new(0,0,
 
 -- ============================================================
 -- SECTION 14: UI COMPONENT BUILDERS
+-- CURTAB is declared FIRST so builders can capture it as upvalue
 -- ============================================================
 local REG={}
+local CURTAB=nil
+
 local TOGGLE_H = IS_MOBILE and 38 or 26
 local TOGGLE_IND_W = IS_MOBILE and 50 or 36
 local TOGGLE_IND_H = IS_MOBILE and 22 or 14
@@ -608,13 +606,13 @@ local function section(txt)
     local h=Instance.new("TextLabel")
     h.Size=UDim2.new(1,0,0,18) h.BackgroundTransparency=1
     h.Text="> "..txt h.TextColor3=C.A h.TextSize=10
-    h.Font=Enum.Font.GothamBold h.TextXAlignment=Enum.TextXAlignment.Left h.Parent=CS
+    h.Font=Enum.Font.GothamBold h.TextXAlignment=Enum.TextXAlignment.Left h.Parent=CURTAB
 end
 
 local function toggle(name,key,cb)
     local f=Instance.new("Frame")
     f.Name=name f.Size=UDim2.new(1,0,0,TOGGLE_H)
-    f.BackgroundColor3=C.SB f.BorderSizePixel=2 f.BorderColor3=C.BD f.Parent=CS
+    f.BackgroundColor3=C.SB f.BorderSizePixel=2 f.BorderColor3=C.BD f.Parent=CURTAB
     Instance.new("UICorner",f).CornerRadius=UDim.new(0,5)
     local l=Instance.new("TextLabel")
     l.Size=UDim2.new(1,-60,1,0) l.Position=UDim2.new(0,8,0,0)
@@ -645,7 +643,7 @@ end
 local function slider(name,mn,mx,dv,key,cb)
     local f=Instance.new("Frame")
     f.Name=name f.Size=UDim2.new(1,0,0,SLIDER_H)
-    f.BackgroundColor3=C.SB f.BorderSizePixel=2 f.BorderColor3=C.BD f.Parent=CS
+    f.BackgroundColor3=C.SB f.BorderSizePixel=2 f.BorderColor3=C.BD f.Parent=CURTAB
     Instance.new("UICorner",f).CornerRadius=UDim.new(0,5)
     local l=Instance.new("TextLabel")
     l.Size=UDim2.new(1,-70,0,12) l.Position=UDim2.new(0,8,0,3)
@@ -690,7 +688,7 @@ local function btn(name,cb)
     local b=Instance.new("TextButton")
     b.Name=name b.Size=UDim2.new(1,0,0,24)
     b.BackgroundColor3=C.AB b.BorderSizePixel=2 b.BorderColor3=C.A
-    b.Text=name b.TextColor3=C.A b.TextSize=9 b.Font=Enum.Font.GothamBold b.Parent=CS
+    b.Text=name b.TextColor3=C.A b.TextSize=9 b.Font=Enum.Font.GothamBold b.Parent=CURTAB
     Instance.new("UICorner",b).CornerRadius=UDim.new(0,5)
     b.MouseButton1Click:Connect(function() if cb then cb() end end)
     table.insert(REG,{name=name,parent=b})
@@ -702,7 +700,7 @@ local function perkSelector(name, key)
     b.Name=name b.Size=UDim2.new(1,0,0,24)
     b.BackgroundColor3=C.AB b.BorderSizePixel=2 b.BorderColor3=C.A
     b.Text=name..": "..State[key] b.TextColor3=C.A b.TextSize=9
-    b.Font=Enum.Font.GothamBold b.Parent=CS
+    b.Font=Enum.Font.GothamBold b.Parent=CURTAB
     Instance.new("UICorner",b).CornerRadius=UDim.new(0,5)
     b.MouseButton1Click:Connect(function()
         local idx=1
@@ -727,9 +725,9 @@ end)
 -- ============================================================
 -- SECTION 15: TAB FRAMEWORK
 -- ============================================================
-local CURTAB=nil
 local function clearTab()
     if CURTAB then CURTAB:Destroy() end
+    CURTAB = nil
     REG={} CS.CanvasSize=UDim2.new(0,0,0,0)
 end
 local function mktab(h)
@@ -841,9 +839,6 @@ local function espTab()
     CS.CanvasSize=UDim2.new(0,0,0,600)
 end
 
--- ============================================================
--- SAFETY REPORT TAB
--- ============================================================
 local function safetyReportTab()
     local f=mktab(700)
     section("LIVE SAFETY STATUS")
@@ -1239,7 +1234,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Auto Parry (ping compensation)
+-- Auto Parry
 RunService.Heartbeat:Connect(function()
     if not State.AutoParry then return end
     local ch = LP.Character
@@ -1312,7 +1307,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Smart Killer Avoidance (25s failsafe)
+-- Smart Killer Avoidance
 local avoidanceActive = false
 local avoidanceStartTime = 0
 RunService.Heartbeat:Connect(function()
@@ -1455,7 +1450,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- Silent Aim (mobile-adaptive)
+-- Silent Aim
 RunService.RenderStepped:Connect(function()
     if not (State.SilentAimSurvivor or State.SilentAimKiller) then return end
     if IS_MOBILE and isDraggingCamera then return end
